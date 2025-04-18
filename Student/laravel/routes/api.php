@@ -18,6 +18,7 @@ Route::get('/grades/{id}', [GradeController::class, 'show']);
 Route::get('/grades/student/{studentId}', [GradeController::class, 'getStudentGrades']);
 Route::post('/grades', [GradeController::class, 'store']);
 
+
 //Student
 Route::get('/students', [StudentController::class, 'index']);
 Route::get('/students/{id}', [StudentController::class, 'show']);
