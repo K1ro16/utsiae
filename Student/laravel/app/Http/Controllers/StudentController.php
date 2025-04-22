@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Student;
+use App\Services\ExternalApiService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 class StudentController extends Controller
 {
-    // Provider Methods
+    protected $externalApiService;
+
+    public function __construct(ExternalApiService $externalApiService)
+    {
+        $this->externalApiService = $externalApiService;
+    }
+
     public function index()
     {
         $students = Student::all();
@@ -30,12 +36,10 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nim' => 'required|string|unique:students',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:students',
+            'email' => 'required|email|unique:students,email',
             'faculty' => 'required|string',
             'major' => 'required|string',
-            'entry_year' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
@@ -75,24 +79,24 @@ class StudentController extends Controller
     public function getTranscript($studentId)
     {
         try {
-            $gradeServiceUrl = env('GRADE_SERVICE_URL', 'http://127.0.0.1:8003');
-            $response = Http::get($gradeServiceUrl . '/api/grades/student/' . $studentId);
-
-            if ($response->failed()) {
-                return response()->json([
-                    'message' => 'Failed to retrieve grades from GradeService',
-                    'error' => $response->body()
-                ], $response->status());
-            }
-
             $student = Student::find($studentId);
             if (!$student) {
                 return response()->json(['message' => 'Student not found'], 404);
             }
 
+            // Get grades from Grade service using our helper
+            $grades = $this->externalApiService->getGradesForStudent($studentId);
+            
+            if ($grades === null) {
+                return response()->json([
+                    'message' => 'Failed to retrieve grades from GradeService'
+                ], 500);
+            }
+
+            // Prepare transcript
             $transcript = [
                 'student' => $student,
-                'grades' => $response->json()
+                'grades' => $grades
             ];
 
             return response()->json($transcript);
