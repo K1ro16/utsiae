@@ -24,7 +24,9 @@ class DashboardController extends Controller
         try {
             $courseServiceUrl = env('COURSE_SERVICE_URL', 'http://127.0.0.1:8002');
             $courseResponse = Http::get($courseServiceUrl . '/api/courses');
-            $courseCount = count($courseResponse->json());
+            // Check if response is valid before counting
+            $courseData = $courseResponse->json();
+            $courseCount = is_array($courseData) ? count($courseData) : 'N/A';
         } catch (\Exception $e) {
             $courseCount = 'N/A';
         }
@@ -33,7 +35,9 @@ class DashboardController extends Controller
         try {
             $gradeServiceUrl = env('GRADE_SERVICE_URL', 'http://127.0.0.1:8003');
             $gradeResponse = Http::get($gradeServiceUrl . '/api/grades');
-            $gradeCount = count($gradeResponse->json());
+            // Check if response is valid before counting
+            $gradeData = $gradeResponse->json();
+            $gradeCount = is_array($gradeData) ? count($gradeData) : 'N/A';
         } catch (\Exception $e) {
             $gradeCount = 'N/A';
         }
@@ -53,6 +57,8 @@ class DashboardController extends Controller
             $courseServiceUrl = env('COURSE_SERVICE_URL', 'http://127.0.0.1:8002');
             $response = Http::get($courseServiceUrl . '/api/courses');
             $courses = $response->json();
+            // Ensure courses is an array
+            $courses = is_array($courses) ? $courses : [];
         } catch (\Exception $e) {
             $courses = [];
         }
@@ -64,25 +70,32 @@ class DashboardController extends Controller
     {
         try {
             $gradeServiceUrl = env('GRADE_SERVICE_URL', 'http://127.0.0.1:8003');
-            $response = Http::get($gradeServiceUrl . '/api/grades');
-            $grades = $response->json();
+            $gradeResponse = Http::get($gradeServiceUrl . '/api/grades');
+            // Check if response is valid before counting
+            $gradeData = $gradeResponse->json();
+            $gradeCount = is_array($gradeData) ? count($gradeData) : 'N/A';
             
-            // Enrich grades with student names
-            foreach ($grades as &$grade) {
-                $student = Student::find($grade['student_id']);
-                $grade['student_name'] = $student ? $student->name : 'Unknown';
-                
-                // Get course details
-                $courseServiceUrl = env('COURSE_SERVICE_URL', 'http://127.0.0.1:8002');
-                $courseResponse = Http::get($courseServiceUrl . '/api/courses/' . $grade['course_id']);
-                $course = $courseResponse->json();
-                $grade['course_name'] = $course ? $course['name'] : 'Unknown';
+            // Ensure grades is an array before processing
+            if (is_array($gradeData)) {
+                // Enrich grades with student names
+                foreach ($gradeData as &$grade) {
+                    $student = Student::find($grade['student_id']);
+                    $grade['student_name'] = $student ? $student->name : 'Unknown';
+                    
+                    // Get course details
+                    $courseServiceUrl = env('COURSE_SERVICE_URL', 'http://127.0.0.1:8002');
+                    $courseResponse = Http::get($courseServiceUrl . '/api/courses/' . $grade['course_id']);
+                    $course = $courseResponse->json();
+                    $grade['course_name'] = $course ? $course['name'] : 'Unknown';
+                }
+            } else {
+                $gradeData = [];
             }
         } catch (\Exception $e) {
-            $grades = [];
+            $gradeData = [];
         }
         
-        return view('grades', compact('grades'));
+        return view('grades', compact('gradeData'));
     }
 
     public function transcript($id)
@@ -94,6 +107,8 @@ class DashboardController extends Controller
         }
         
         $transcript = $this->externalApiService->getGradesForStudent($id);
+        // Ensure transcript is an array
+        $transcript = is_array($transcript) ? $transcript : [];
         
         return view('transcript', compact('student', 'transcript'));
     }

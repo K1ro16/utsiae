@@ -62,28 +62,22 @@ class GradeController extends Controller
 
     public function getStudentGrades($studentId)
     {
-        // Validate that student exists
-        if (!$this->externalApiService->validateStudent($studentId)) {
-            return response()->json(['message' => 'Student does not exist'], 404);
-        }
-
         $grades = Grade::where('student_id', $studentId)->get();
-
-        // Enrich grades with course information
-        $enrichedGrades = $grades->map(function ($grade) {
-            $courseDetails = $this->externalApiService->getCourseDetails($grade->course_id);
-            
+        
+        // Transform to match what Student service expects
+        $formattedGrades = $grades->map(function($grade) {
             return [
-                'id' => $grade->id,
-                'student_id' => $grade->student_id,
                 'course_id' => $grade->course_id,
-                'course_name' => $courseDetails ? $courseDetails['name'] : 'Unknown Course',
+                'course_code' => 'CS' . $grade->course_id, // Example format
+                'course_name' => 'Course ' . $grade->course_id, // Would normally come from Course service
                 'score' => $grade->score,
-                'created_at' => $grade->created_at,
-                'updated_at' => $grade->updated_at,
+                'credits' => 3 // Default credits or from Course service
             ];
         });
-
-        return response()->json($enrichedGrades);
+        
+        return response()->json($formattedGrades);
     }
 }
+
+// In Grade service routes/api.php
+Route::get('/student/{studentId}/grades', [GradeController::class, 'getStudentGrades']);
